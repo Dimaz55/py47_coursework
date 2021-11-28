@@ -14,7 +14,8 @@ def get_vk_token():
             exit()
     return vk_token
 
-def get_photo_urls_from_vk(token: str, user_id=0, photo_count=5, album_type='profile'):
+
+def get_photo_urls_from_vk(token, user_id=0, album_type='profile', photo_count=5):
     """Возвращает словарь составленный из ссылок на фотографии и типа
     изображения из аккаунта Вконтакте.
     token - токен VK API

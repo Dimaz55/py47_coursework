@@ -18,15 +18,15 @@ def check_path_validity(path):
 
 if __name__ == '__main__':
     vk_token = get_vk_token()
-    ya_token = get_ya_token()    
+    ya_token = get_ya_token()
 
-    photos_from_vk = get_photo_urls_from_vk(vk_token)
+    photos_from_vk = get_photo_urls_from_vk(vk_token, 0, 'wall', 30)
 
     y = YaUploader(ya_token)
 
     answer = False
     while not answer:
-        path = input('Введите имя папки для загрузки, либо нажмите Enter - имя будет создано автоматически:')
+        path = input('Введите целевой папки, либо нажмите Enter - имя будет создано автоматически:')
         if path == '':
             path = photos_from_vk.pop('default_dirname')
         else:
