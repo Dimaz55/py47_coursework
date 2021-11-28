@@ -1,5 +1,6 @@
 from time import sleep
 import requests
+from pprint import pprint
 
 
 def loader() -> None:
@@ -14,9 +15,8 @@ def loader() -> None:
 
 
 class YaUploader:
-    def __init__(self):
-        with open('ya_token.txt') as file:
-            self.token = file.readline().strip()
+    def __init__(self, token):
+        self.token = token
         self.url = 'https://cloud-api.yandex.net'
         self.upload_url = '/v1/disk/resources/upload'
 
@@ -64,12 +64,36 @@ class YaUploader:
         return 0
 
     def makedir(self, path):
+        pathes = path.lstrip('/').split('/')  # Если указаны вложенные папки
+        path = ''
+        for dir in pathes:
+            path += '/' + dir
+            params = {
+            'path': path,
+            }
+            response = requests.put(
+                self.url + '/v1/disk/resources',
+                headers=self.get_headers(),
+                params=params
+            )
+            if 'error' in response.json():
+                print('Ошибка создания папки')
+                print(response.json()['error'])
+                return False
+        return True
+
+    def check_dir_name(self, path):
         params = {
             'path': path,
         }
-        response = requests.put(
+        response = requests.get(
             self.url + '/v1/disk/resources',
             headers=self.get_headers(),
             params=params
         )
-        return response
+        # pprint(response.json())
+        if 'error' in response.json():
+            return False
+        elif response.json()['type'] == 'dir':
+            return True
+        return False
