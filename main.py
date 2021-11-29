@@ -20,7 +20,7 @@ if __name__ == '__main__':
     vk_token = get_vk_token()
     ya_token = get_ya_token()
 
-    photos_from_vk = get_photo_urls_from_vk(vk_token, 0, 'wall', '122')
+    photos_from_vk = get_photo_urls_from_vk(vk_token)
     if 'error' in photos_from_vk:
         print(photos_from_vk['error'])
         exit()

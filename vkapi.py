@@ -48,7 +48,7 @@ def get_photo_urls_from_vk(token, user_id=0, album_type='profile', photo_count=5
     except ValueError:
         return {'error': 'user_id может быть только положительным числом либо 0.'}
 
-    if album_type not in ['wall', 'saved']:
+    if album_type not in ['profile', 'wall', 'saved']:
         return {'error': 'album_type неверен, выберите один из вариантов: "profile", "wall", "saved".'}
 
     try:
@@ -73,19 +73,23 @@ def get_photo_urls_from_vk(token, user_id=0, album_type='profile', photo_count=5
     }
 
     response = requests.get(url, params={**auth_params, **request_params}).json()
-    # pprint(response)
+
     try:
         response = response['response']
     except KeyError:
-        print(response['error']['error_msg'])
-        return 0
-    # photos_total = response['count']
+        try:
+            err = response['error']['error_msg1']
+        except:
+            if response['error']['error_code'] == 200:
+                err = f'Доступ к альбому "{album_type}" запрещён пользователем.'
+        return {'error': err}
+
     photos_list = response['items']
     owner_id = response['items'][0]['id']
     result_urls_dict = {}
     likes = ''
 
-    for photo in photos_list[::-1]:  # Начинаем с самых ранних фото
+    for photo in photos_list:
         photo_url = photo['sizes'][-1]['url']
         photo_date = photo['date']
         size_type = photo['sizes'][-1]['type']
