@@ -20,13 +20,19 @@ if __name__ == '__main__':
     vk_token = get_vk_token()
     ya_token = get_ya_token()
 
-    photos_from_vk = get_photo_urls_from_vk(vk_token, 0, 'wall', 30)
+    photos_from_vk = get_photo_urls_from_vk(vk_token, 0, 'wall', '122')
+    if 'error' in photos_from_vk:
+        print(photos_from_vk['error'])
+        exit()
 
     y = YaUploader(ya_token)
 
+    print('----------------------------------------------------------------')
+    print('Во всех диалогах Enter выбирает первый ответ в списке возможных.')
+    print('----------------------------------------------------------------')
     answer = False
     while not answer:
-        path = input('Введите имя целевой папки, либо нажмите Enter - имя будет создано автоматически:')
+        path = input('Введите имя целевой папки либо нажмите Enter:')
         if path == '':
             path = photos_from_vk.pop('default_dirname')
         else:
@@ -42,6 +48,7 @@ if __name__ == '__main__':
             y.makedir(path)
             answer = True
     path = '/' + path + '/'
+    print(f'Количество файлов для выгрузки: {len(photos_from_vk) + 1}')
     json_list = []
     for file_name, prop in photos_from_vk.items():
         pth_to_file = path + file_name

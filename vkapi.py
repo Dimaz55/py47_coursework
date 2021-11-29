@@ -41,6 +41,23 @@ def get_photo_urls_from_vk(token, user_id=0, album_type='profile', photo_count=5
     выгрузки на Я.Диск в том случае если пользователь явно не задаёт имя.
     Формат имени: 'VK_{user_id}_{album_type}'
     """
+    try:
+        user_id = int(user_id)
+        if user_id < 0:
+            return {'error': 'user_id не может быть меньше 0.'}
+    except ValueError:
+        return {'error': 'user_id может быть только положительным числом либо 0.'}
+
+    if album_type not in ['wall', 'saved']:
+        return {'error': 'album_type неверен, выберите один из вариантов: "profile", "wall", "saved".'}
+
+    try:
+        photo_count = int(photo_count)
+        if photo_count < 1 or photo_count > 1000:
+            return {'error': 'photo_count может быть только числом от 1 до 1000.'}
+    except ValueError:
+        return {'error': 'photo_count может быть только числом (1..1000).'}
+
     url = 'https://api.vk.com/method/photos.get'
 
     auth_params = {
