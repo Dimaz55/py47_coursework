@@ -57,13 +57,15 @@ class YaUploader:
                                     params=upload_params)
             res = response.json()
             if 'error' in res:
-                print('Ошибка:', res['message'])
+                print('>>> Ошибка:', res['message'])
                 if res['description'].endswith('already exists.'):
                     ans = input('> Перезаписать файл? [y/n] ')
                     if ans in ['Y', 'y', '']:
                         upload_params['overwrite'] = 'true'
                     else:
                         upload_url = 'Error'
+                else:
+                    upload_url = res['message']
             upload_url = res['href']
             run = False
         return upload_url
