@@ -1,6 +1,17 @@
 from time import sleep
 import requests
-from pprint import pprint
+
+
+def check_path_validity(path):
+    try:
+        with open(path, 'r'):
+            pass
+    except FileNotFoundError:
+        pass
+    except OSError:
+        print('Введён недопустимый символ!')
+        return False
+    return True
 
 
 def loader() -> None:
@@ -52,16 +63,16 @@ class YaUploader:
                     if ans in ['Y', 'y', '']:
                         upload_params['overwrite'] = 'true'
                     else:
-                        return 'Error'
-            else:
-                upload_url = res['href']
-                run = False
+                        upload_url = 'Error'
+            upload_url = res['href']
+            run = False
         return upload_url
 
-
-    def upload(self, mode, path=None, url=None, target_path=None):
+    def upload(self, mode='local', path=None, url=None, target_path=None):
         """Выгружает файл с локального диска если указан только path либо с
         внешнего ресурса по адресу url в папку path на Я.Диске
+        mode - режим выгрузки: 'local' - файл с локального диска,
+                               'remote' - с удалённых ресурсов по url
         """
         params = {
             'path': path,
@@ -136,3 +147,30 @@ class YaUploader:
             params=params
         )
         return response
+
+    def get_upload_dir_name(self, default_dir_name):
+        """Формирование пути загрузки файлов на Я.Диск: либо из ввода пользователя,
+        либо из имени по умолчанию"""
+        answer = False
+        while not answer:
+            path = input('> Введите имя целевой папки либо нажмите Enter:')
+            if path == '':
+                path = default_dir_name
+            else:
+                if not check_path_validity(path):
+                    answer = False
+
+            # проверка существования пути path на Я.Диске
+            if self.check_dir_name(path):
+                ans = input(
+                    '>> Папка уже существует. Записать в неё? При совпадении '
+                    'имён файлы будут переименованы.[y/n] ')
+                if ans in ['y', 'Y', '']:
+                    break
+            else:
+                # Создаём папку на Я.Диске для дальнейшей загрузки файлов
+                self.makedir(path)
+                answer = True
+
+        path = '/' + path + '/'  # слеши для формирования полного пути
+        return path
