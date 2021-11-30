@@ -50,7 +50,7 @@ def prepare_params(net, params):
         print()
         change_mode = input("Хотите изменить параметры? [y/n]: ")
         if change_mode in ['y', 'Y']:
-            return change_params(SOCIAL_PARAMS)
+            return change_params(vk_request_params)
         else:
             return vk_request_params
     else:
@@ -64,23 +64,20 @@ def change_params(params):
     answer_list = list(answer_list)  # Переводим в изменяемый тип
     answers = []
     for answer in answer_list:
-        if answer.isnumeric() and int(answer) in range(2, 5):
+        if answer.isnumeric() and int(answer) in USER_CAN_CHANGE:
             answers.append(int(answer))
-    vk_request_params = {}
+    params_map = {2: 'user_id', 3: 'count', 4: 'album_id'}
     for param in sorted(answers):
-        if param not in USER_CAN_CHANGE:
-            print('Извините, параметр', param, 'не доступен для изменения в данный момент.')
-        else:
-            answered = False
-            while not answered:
-                print(f"> Введите новое значение {params[net][param]['field']}: ", end='')
-                ans = input()
-                if ans == '':
-                    answered = False
-                else:
-                    vk_request_params[params[net][param]['field']] = ans
-                    answered = vk_check_params(params[net][param]['field'], ans)
-    return vk_request_params
+        answered = False
+        while not answered:
+            print(f"> Введите новое значение {params_map[param]}: ", end='')
+            ans = input()
+            if ans == '':
+                answered = False
+            else:
+                params[params_map[param]] = ans
+                answered = vk_check_params(params[params_map[param]], ans)
+    return params
 
 
 def vk_check_params(key, value):
@@ -98,7 +95,7 @@ def vk_check_params(key, value):
         print('>>> Ошибка! album_type неверен, выберите один из вариантов: "profile", "wall", "saved".')
         return False
 
-    if key == 'photo_count':
+    if key == 'count':
         try:
             value = int(value)
             if value < 1 or value > 1000:
@@ -114,6 +111,7 @@ if __name__ == '__main__':
 
     net = 'vk'
     request_params = prepare_params(net, SOCIAL_PARAMS)
+    print(request_params)
     vk_token = get_vk_token()
 
     photos_from_vk = get_photo_urls_from_vk(vk_token, request_params)

@@ -56,13 +56,16 @@ def get_photo_urls_from_vk(token, request_params):
     owner_id = response['items'][0]['id']
     result_urls_dict = {}
     likes = ''
-    pprint(response)
     if photos_list:
         for photo in photos_list:
             photo_url = photo['sizes'][-1]['url']
             photo_date = photo['date']
             size_type = photo['sizes'][-1]['type']
-            file_ext = re.findall(r'\.?(.png|.gif|.jpg|.jpeg|.tiff)?\?s', photo_url)[0]
+            i = photo_url.find('?size')
+            if i == -1:
+                file_ext = re.findall(r'\.?(.png|.gif|.jpg|.jpeg|.tiff)$', photo_url)[0]
+            else:
+                file_ext = re.findall(r'\.?(.png|.gif|.jpg|.jpeg|.tiff)$', photo_url[:i])[0]
             try:
                 likes = str(photo['likes']['count'])
             except KeyError:
