@@ -1,7 +1,7 @@
 import json
 from yadisk import get_ya_token, YaUploader
 from vkapi import get_vk_token, get_photo_urls_from_vk
-
+from pprint import pprint
 
 def welcome():
     print('Photo reaper v0.1.0')
@@ -47,7 +47,6 @@ def prepare_params(net, params):
               f"3. Количество фото для загрузки: {p_count['default']}\n"
               f"4. Альбом: {album_id['default']}\n"
               f"5. Облачное хранилище: Я.Диск\n")
-        print()
         change_mode = input("Хотите изменить параметры? [y/n]: ")
         if change_mode in ['y', 'Y']:
             return change_params(vk_request_params)
@@ -75,8 +74,9 @@ def change_params(params):
             if ans == '':
                 answered = False
             else:
-                params[params_map[param]] = ans
-                answered = vk_check_params(params[params_map[param]], ans)
+                answered = vk_check_params(params_map[param], ans)
+                if answered:
+                    params[params_map[param]] = ans
     return params
 
 
@@ -111,7 +111,6 @@ if __name__ == '__main__':
 
     net = 'vk'
     request_params = prepare_params(net, SOCIAL_PARAMS)
-    print(request_params)
     vk_token = get_vk_token()
 
     photos_from_vk = get_photo_urls_from_vk(vk_token, request_params)

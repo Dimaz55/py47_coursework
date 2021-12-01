@@ -52,9 +52,15 @@ class YaUploader:
         upload_params = {'path': file_path, 'overwrite': 'false'}
         run = True
         while run:
-            response = requests.get(url,
+            print('> Получение ссылки для загрузки локального файла...')
+            try:
+                response = requests.get(url,
                                     headers=self.get_headers(),
-                                    params=upload_params)
+                                    params=upload_params,
+                                    timeout=5)
+            except ValueError:
+                print('Исключение')
+            print('>> Ссылка успешно получена.')
             res = response.json()
             if 'error' in res:
                 print('>>> Ошибка:', res['message'])
@@ -63,11 +69,12 @@ class YaUploader:
                     if ans in ['Y', 'y', '']:
                         upload_params['overwrite'] = 'true'
                     else:
-                        upload_url = 'Error'
+                        return {'error': 'Отменено'}
                 else:
-                    upload_url = res['message']
-            upload_url = res['href']
-            run = False
+                    return {'error': 'Отменено'}
+            else:
+                run = False
+        upload_url = res['href']
         return upload_url
 
     def upload(self, mode='local', path=None, url=None, target_path=None):
@@ -88,18 +95,20 @@ class YaUploader:
             )
             return response
 
-        print('> Получение ссылки для загрузки локального файла...')
+        # Получение ссылки для загрузки локального файла
         with open(path, 'rb') as f:
+            upload_link = self._get_upload_link(target_path)
             try:
-                response = requests.put(self._get_upload_link(target_path),
-                                        files={"file": f})
-            except requests.exceptions.MissingSchema:
-                print('>> Отмена операции.')
+                response = requests.put(upload_link,
+                                    files={"file": f}
+                                    )
+            except:
+                print('Исключение при выгрузке')
                 return 0
-            print('>> Ссылка успешно получена.')
+
             print(f'>>> Файл {path} успешно загружен: Я.Диск:{target_path}')
             return response.status_code
-        print('>> Ошибка получения ссылки.')
+
         return 0
 
     def makedir(self, path):
@@ -110,15 +119,16 @@ class YaUploader:
         for directory in pathes:
             path += '/' + directory
             params = {'path': path}
-            response = requests.put(
-                self.url,
-                headers=self.get_headers(),
-                params=params
-            )
-            if 'error' in response.json():
-                print('>> Ошибка создания папки.')
-                print(response.json()['error'])
-                return False
+            if not self.check_dir_name(path):
+                response = requests.put(
+                    self.url,
+                    headers=self.get_headers(),
+                    params=params
+                )
+                if 'error' in response.json():
+                    print('>> Ошибка создания папки.')
+                    print(response.json()['error'])
+                    return False
         print('>> Папка успешно создана.')
         return True
 
@@ -161,6 +171,7 @@ class YaUploader:
             else:
                 if not check_path_validity(path):
                     answer = False
+                    continue
 
             # проверка существования пути path на Я.Диске
             if self.check_dir_name(path):
@@ -170,9 +181,21 @@ class YaUploader:
                 if ans in ['y', 'Y', '']:
                     break
             else:
+                # разбор пути, удаление лишних слэшей
+                pathes = path.lstrip('/').split('/')
+                s_len = len(pathes)
+                for i in range(len(pathes)):
+                    if pathes[i] != '':
+                        pathes.append(pathes[i])
+                pathes = pathes[s_len:]
+                path = ''
+                for el in pathes:
+                    path += '/' + el
                 # Создаём папку на Я.Диске для дальнейшей загрузки файлов
                 self.makedir(path)
                 answer = True
-
-        path = '/' + path + '/'  # слеши для формирования полного пути
+        if path.startswith('/'):
+            path = path + '/'
+        else:
+            path = '/' + path + '/'  # слеши для формирования полного пути
         return path

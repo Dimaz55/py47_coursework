@@ -47,11 +47,18 @@ def get_photo_urls_from_vk(token, request_params):
 
     try:
         response = response['response']
+        if response['count'] == 0:
+            return {'error': 'У пользователя нет фотографий в данном альбоме.'}
     except KeyError:
-        return {'error': 'KeyError'}
-    if 'error' in response and response['error']['error_code'] == 200:
-        err = f"Доступ к альбому '{request_params['album_type']}' запрещён пользователем."
-        return {'error': err}
+        if 'error' in response:
+            if response['error']['error_code'] == 100:
+                return {'error': response['error']['error_msg']}
+            if response['error']['error_code'] == 200:
+                return {'error': response['error']['error_msg']}
+        print('vkapi')
+        return {'error': 'HZ'}
+
+    # print('count=', response['count'])
     photos_list = response['items']
     owner_id = response['items'][0]['id']
     result_urls_dict = {}
@@ -61,19 +68,17 @@ def get_photo_urls_from_vk(token, request_params):
             photo_url = photo['sizes'][-1]['url']
             photo_date = photo['date']
             size_type = photo['sizes'][-1]['type']
-            i = photo_url.find('?size')
-            if i == -1:
-                file_ext = re.findall(r'\.?(.png|.gif|.jpg|.jpeg|.tiff)$', photo_url)[0]
-            else:
-                file_ext = re.findall(r'\.?(.png|.gif|.jpg|.jpeg|.tiff)$', photo_url[:i])[0]
+            file_ext = re.findall(r'(?:jpg|jpeg|png|tiff|bmp|gif)', photo_url)[0]
             try:
                 likes = str(photo['likes']['count'])
             except KeyError:
                 print('У фотографии нет лайков, файл будет назван по его дате.')
-            if likes + file_ext in result_urls_dict or likes == '':
+                likes = ''
+            file_name = likes + '.' + file_ext
+            if likes == '' or file_name in result_urls_dict:
                 timestamp = dt.datetime.fromtimestamp(photo_date)
-                likes = timestamp.strftime('%Y-%m-%d_%H-%M-%S')
-            file_name = str(likes) + file_ext
+                file_name = timestamp.strftime('%Y-%m-%d_%H-%M-%S') + '.' + file_ext
+
             result_urls_dict[file_name] = {
                 'url': photo_url,
                 'size_type': size_type
