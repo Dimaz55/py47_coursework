@@ -1,6 +1,6 @@
 import json
 from yadisk import get_ya_token, YaUploader
-from vkapi import get_vk_token, get_photo_urls_from_vk
+from vkapi import VkApi
 from pprint import pprint
 
 def welcome():
@@ -18,7 +18,7 @@ SOCIAL_PARAMS = {
         4: {'name': 'альбом',
             'field': 'album_id',
             'default': 'profile',
-            'all':
+            'select':
                 {
                     'profile': 'фотографии из профиля',
                     'wall': 'фотографии со стены',
@@ -27,36 +27,75 @@ SOCIAL_PARAMS = {
             }
     }
 }
+
+CLOUD_STORAGE = {
+    'ya.disk': {
+        'name': 'Яндекс Диск'
+    },
+    'g.drive': {
+        'name': 'Google Drive'
+    }
+}
+
 USER_CAN_CHANGE = [2, 3, 4]  # Опции доступные для изменения пользователем
 
+def get_params(net, params):
+    u_id = params[net][2]
+    p_count = params[net][3]
+    album_id = params[net][4]
+    cloud_id = CLOUD_STORAGE['ya.disk']['name']
 
-def prepare_params(net, params):
-    if net == 'vk':
-        net_name = params[net][1]['name']
-        u_id = params[net][2]
-        p_count = params[net][3]
-        album_id = params[net][4]
+    print(f"Текущий режим работы:\n"
+          f"1. Соц.сеть: {net}\n"
+          f"2. ID пользователя: {u_id['default']}\n"
+          f"3. Количество фото для загрузки: {p_count['default']}\n"
+          f"4. Альбом: {album_id['default']}\n"
+          f"5. Облачное хранилище: Я.Диск\n")
 
-        vk_request_params = {'user_id': u_id['default'],
-                             'album_id': album_id['default'],
-                             'count': p_count['default']}
-
-        print(f"Режим работы по-умолчанию:\n"
-              f"1. Соц.сеть: {net_name}\n"
-              f"2. ID пользователя: {u_id['default']}\n"
-              f"3. Количество фото для загрузки: {p_count['default']}\n"
-              f"4. Альбом: {album_id['default']}\n"
-              f"5. Облачное хранилище: Я.Диск\n")
-        change_mode = input("Хотите изменить параметры? [y/n]: ")
-        if change_mode in ['y', 'Y']:
-            return change_params(vk_request_params)
-        else:
-            return vk_request_params
+    out_params = {u_id['field']: u_id['default'],
+                  p_count['field']: p_count['default'],
+                  album_id['field']: album_id['default']}
+    change_mode = input("Хотите изменить параметры? [y/n]: ")
+    if change_mode in ['y', 'Y']:
+        return change_params(net, out_params)
     else:
-        return None  # сделать обработку ошибки о неверной сети
+        return out_params
 
 
-def change_params(params):
+
+def check_params(net, params):
+    if net == 'vk':
+        for key, value in params.items():
+            if key == 'user_id':
+                try:
+                    value = int(value)
+                    if value < 0:
+                        print('>>> Ошибка! user_id не может быть меньше 0.')
+                        return False
+                except ValueError:
+                    print('>>> Ошибка! user_id может быть только положительным числом либо 0.')
+                    return False
+
+            if key == 'album_id' and value not in ['profile', 'wall', 'saved']:
+                print('>>> Ошибка! album_type неверен, выберите один из вариантов: "profile", "wall", "saved".')
+                return False
+
+            if key == 'count':
+                try:
+                    value = int(value)
+                    if value < 1 or value > 1000:
+                        print('Ошибка! photo_count может быть числом от 1 до 1000.')
+                        return False
+                except ValueError:
+                    print('>>> Ошибка! photo_count может быть только числом (1..1000).')
+                    return False
+        return True
+    else:
+        print('Другие соц.сети пока не поддерживаются.')
+        return False
+
+
+def change_params(net, params):
     print('Внимание! Параметры 1 и 5 пока изменить нельзя.')
     answer_list = input('Какие пункты хотите изменить? Введите нужные цифры списком: ')
     answer_list = set(answer_list)  # Удаляем дубликаты
@@ -74,59 +113,36 @@ def change_params(params):
             if ans == '':
                 answered = False
             else:
-                answered = vk_check_params(params_map[param], ans)
+                answered = check_params(net, {params_map[param]: ans})
                 if answered:
                     params[params_map[param]] = ans
     return params
-
-
-def vk_check_params(key, value):
-    if key == 'user_id':
-        try:
-            value = int(value)
-            if value < 0:
-                print('>>> Ошибка! user_id не может быть меньше 0.')
-                return False
-        except ValueError:
-            print('>>> Ошибка! user_id может быть только положительным числом либо 0.')
-            return False
-
-    if key == 'album_id' and value not in ['profile', 'wall', 'saved']:
-        print('>>> Ошибка! album_type неверен, выберите один из вариантов: "profile", "wall", "saved".')
-        return False
-
-    if key == 'count':
-        try:
-            value = int(value)
-            if value < 1 or value > 1000:
-                print('Ошибка! photo_count может быть числом от 1 до 1000.')
-                return False
-        except ValueError:
-            return {'>>> Ошибка! photo_count может быть только числом (1..1000).'}
-    return True
 
 
 if __name__ == '__main__':
     welcome()
 
     net = 'vk'
-    request_params = prepare_params(net, SOCIAL_PARAMS)
-    vk_token = get_vk_token()
+    params = get_params(net, SOCIAL_PARAMS)
+    # формируем параметры запроса для нужной соц.сети
 
-    photos_from_vk = get_photo_urls_from_vk(vk_token, request_params)
-    if 'error' in photos_from_vk:
-        print(photos_from_vk['error'])
-        exit()
+    main_loop = True
+    while main_loop:
+        v = VkApi(params)
+        photos_list = v.get_photo_list()
+        # if 'error' in photos_list:
+        #     print(photos_list['error'])
+        main_loop = False
 
     ya_token = get_ya_token()
     y = YaUploader(ya_token)
 
-    default_dir_name = photos_from_vk.pop('default_dirname')
-    upload_path = y.get_upload_dir_name(default_dir_name)
 
-    print(f'Количество файлов для выгрузки: {len(photos_from_vk) + 1}')
+    upload_path = y.get_upload_dir_name(v.get_default_folder_name())
+
+    print(f'Количество файлов для выгрузки: {len(photos_list) + 1}')
     json_list = []
-    for file_name, prop in photos_from_vk.items():
+    for file_name, prop in photos_list.items():
         path_to_file = upload_path + file_name
         print(f"> Загружаем файл по ссылке: {prop['url'][:50] + '...'}")
 
