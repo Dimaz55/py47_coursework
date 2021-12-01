@@ -1,7 +1,6 @@
-import json
-from yadisk import get_ya_token, YaUploader
+from yadisk import YaUploader
 from vkapi import VkApi
-from pprint import pprint
+
 
 def welcome():
     print('Photo reaper v0.1.0')
@@ -13,8 +12,12 @@ def welcome():
 SOCIAL_PARAMS = {
     'vk': {
         1: {'name': 'Вконтакте'},
-        2: {'name': 'идентификатор пользователя', 'field': 'user_id', 'default': '0'},
-        3: {'name': 'количество фотографий для загрузки', 'field': 'count', 'default': '5'},
+        2: {'name': 'идентификатор пользователя',
+            'field': 'user_id',
+            'default': '0'},
+        3: {'name': 'количество фотографий для загрузки',
+            'field': 'count',
+            'default': '5'},
         4: {'name': 'альбом',
             'field': 'album_id',
             'default': 'profile',
@@ -39,6 +42,7 @@ CLOUD_STORAGE = {
 
 USER_CAN_CHANGE = [2, 3, 4]  # Опции доступные для изменения пользователем
 
+
 def get_params(net, params):
     u_id = params[net][2]
     p_count = params[net][3]
@@ -50,7 +54,7 @@ def get_params(net, params):
           f"2. ID пользователя: {u_id['default']}\n"
           f"3. Количество фото для загрузки: {p_count['default']}\n"
           f"4. Альбом: {album_id['default']}\n"
-          f"5. Облачное хранилище: Я.Диск\n")
+          f"5. Облачное хранилище: {cloud_id}\n")
 
     out_params = {u_id['field']: u_id['default'],
                   p_count['field']: p_count['default'],
@@ -60,7 +64,7 @@ def get_params(net, params):
         return change_params(net, out_params)
     else:
         return out_params
-
+    return out_params
 
 
 def check_params(net, params):
@@ -73,21 +77,25 @@ def check_params(net, params):
                         print('>>> Ошибка! user_id не может быть меньше 0.')
                         return False
                 except ValueError:
-                    print('>>> Ошибка! user_id может быть только положительным числом либо 0.')
+                    print('>>> Ошибка! user_id может быть только положительным'
+                          'числом либо 0.')
                     return False
 
             if key == 'album_id' and value not in ['profile', 'wall', 'saved']:
-                print('>>> Ошибка! album_type неверен, выберите один из вариантов: "profile", "wall", "saved".')
+                print('>>> Ошибка! album_type неверен, выберите один из '
+                      'вариантов: "profile", "wall", "saved".')
                 return False
 
             if key == 'count':
                 try:
                     value = int(value)
                     if value < 1 or value > 1000:
-                        print('Ошибка! photo_count может быть числом от 1 до 1000.')
+                        print('Ошибка! '
+                              'photo_count может быть числом от 1 до 1000.')
                         return False
                 except ValueError:
-                    print('>>> Ошибка! photo_count может быть только числом (1..1000).')
+                    print('>>> Ошибка! '
+                          'photo_count может быть только числом (1..1000).')
                     return False
         return True
     else:
@@ -97,7 +105,8 @@ def check_params(net, params):
 
 def change_params(net, params):
     print('Внимание! Параметры 1 и 5 пока изменить нельзя.')
-    answer_list = input('Какие пункты хотите изменить? Введите нужные цифры списком: ')
+    answer_list = input('Какие пункты хотите изменить? '
+                        'Введите нужные цифры списком: ')
     answer_list = set(answer_list)  # Удаляем дубликаты
     answer_list = list(answer_list)  # Переводим в изменяемый тип
     answers = []
@@ -123,35 +132,15 @@ if __name__ == '__main__':
     welcome()
 
     net = 'vk'
+    # формирование  параметров запроса для нужной соц.сети
     params = get_params(net, SOCIAL_PARAMS)
-    # формируем параметры запроса для нужной соц.сети
 
-    main_loop = True
-    while main_loop:
-        v = VkApi(params)
-        photos_list = v.get_photo_list()
-        # if 'error' in photos_list:
-        #     print(photos_list['error'])
-        main_loop = False
+    v = VkApi(params)
+    photos_list = v.get_photo_list()
 
-    ya_token = get_ya_token()
-    y = YaUploader(ya_token)
+    y = YaUploader()
 
-
-    upload_path = y.get_upload_dir_name(v.get_default_folder_name())
-
-    print(f'Количество файлов для выгрузки: {len(photos_list) + 1}')
-    json_list = []
-    for file_name, prop in photos_list.items():
-        path_to_file = upload_path + file_name
-        print(f"> Загружаем файл по ссылке: {prop['url'][:50] + '...'}")
-
-        res = y.upload('remote', path_to_file, url=prop['url'])
-        print(f'>> Файл успешно сохранён: Я.Диск:{path_to_file}')
-        json_list.append({'file_name': file_name, 'size': prop['size_type']})
-
-    with open('log.json', 'w') as file:
-        json.dump(json_list, file)
-    res = y.upload('local', 'log.json', target_path=upload_path + 'log.json')
+    upload_path = y.get_upload_dir_name(v.default_dirname)
+    y.upload_file_list(photos_list, upload_path)
 
     print('-= The End =-')

@@ -1,51 +1,21 @@
-from time import sleep
+import json
 import requests
 
 
-def check_path_validity(path):
-    try:
-        with open(path, 'r'):
-            pass
-    except FileNotFoundError:
-        pass
-    except OSError:
-        print('Введён недопустимый символ!')
-        return False
-    return True
-
-
-def loader() -> None:
-    print('Загрузка файла...')
-    for i in range(1, 20):
-        e = '=' * i
-        u = ' ' * (20-i-1)
-        print(f'[{e}{u}] {i*5+5}%', end='')
-        sleep(0.1)
-        print('\r', end='')
-    print()
-
-
-def get_ya_token():
-    try:
-        with open('ya_token.txt') as file:
-            ya_token = file.readline().strip()
-    except FileNotFoundError:
-        print('Файл с токеном Yandex на найден. Можете ввести вручную (0 для выхода): ')
-        if ya_token == '0':
-            exit()
-    return ya_token
-
-
 class YaUploader:
-    def __init__(self, token):
-        self.token = token
+    def __init__(self):
+        self.token = self._get_ya_token()
         self.url = 'https://cloud-api.yandex.net/v1/disk/resources/'
-
-    def get_headers(self):
-        return {
+        self.headers = {
             'Content-type': 'application/json',
             'Authorization': f'OAuth {self.token}',
         }
+
+    @staticmethod
+    def _get_ya_token():
+        with open('ya_token.txt') as file:
+            ya_token = file.readline().strip()
+        return ya_token
 
     def _get_upload_link(self, file_path):
         url = self.url + 'upload'
@@ -54,12 +24,13 @@ class YaUploader:
         while run:
             print('> Получение ссылки для загрузки локального файла...')
             try:
-                response = requests.get(url,
-                                    headers=self.get_headers(),
-                                    params=upload_params,
-                                    timeout=5)
+                response = requests.get(
+                    url,
+                    headers=self.headers,
+                    params=upload_params
+                )
             except ValueError:
-                print('Исключение')
+                print(response.json()['error']['error_msg'])
             print('>> Ссылка успешно получена.')
             res = response.json()
             if 'error' in res:
@@ -80,8 +51,8 @@ class YaUploader:
     def upload(self, mode='local', path=None, url=None, target_path=None):
         """Выгружает файл с локального диска если указан только path либо с
         внешнего ресурса по адресу url в папку path на Я.Диске
-        mode - режим выгрузки: 'local' - файл с локального диска,
-                               'remote' - с удалённых ресурсов по url
+        mode - режим выгрузки: 'remote' - с удалённых ресурсов по url,
+                                остальные значения - с локального диска
         """
         params = {
             'path': path,
@@ -90,7 +61,7 @@ class YaUploader:
         if mode == 'remote':
             response = requests.post(
                 self.url + 'upload',
-                headers=self.get_headers(),
+                headers=self.headers,
                 params=params
             )
             return response
@@ -98,22 +69,17 @@ class YaUploader:
         # Получение ссылки для загрузки локального файла
         with open(path, 'rb') as f:
             upload_link = self._get_upload_link(target_path)
-            try:
-                response = requests.put(upload_link,
-                                    files={"file": f}
-                                    )
-            except:
-                print('Исключение при выгрузке')
-                return 0
-
+            response = requests.put(
+                upload_link,
+                files={"file": f}
+            )
             print(f'>>> Файл {path} успешно загружен: Я.Диск:{target_path}')
             return response.status_code
-
         return 0
 
     def makedir(self, path):
         """Создаёт папку по пути path на Я.Диске"""
-        print(f'> Cоздаём путь {path} на Я.Диске...')
+        print(f'> Создаём путь {path} на Я.Диске...')
         pathes = path.lstrip('/').split('/')  # Если указаны вложенные папки
         path = ''
         for directory in pathes:
@@ -122,7 +88,7 @@ class YaUploader:
             if not self.check_dir_name(path):
                 response = requests.put(
                     self.url,
-                    headers=self.get_headers(),
+                    headers=self.headers,
                     params=params
                 )
                 if 'error' in response.json():
@@ -139,10 +105,9 @@ class YaUploader:
         }
         response = requests.get(
             self.url,
-            headers=self.get_headers(),
+            headers=self.headers,
             params=params
         )
-        # pprint(response.json())
         if 'error' in response.json():
             return False
         elif response.json()['type'] == 'dir':
@@ -155,7 +120,7 @@ class YaUploader:
         }
         response = requests.delete(
             self.url,
-            headers=self.get_headers(),
+            headers=self.headers,
             params=params
         )
         return response
@@ -168,11 +133,6 @@ class YaUploader:
             path = input('> Введите имя целевой папки либо нажмите Enter:')
             if path == '':
                 path = default_dir_name
-            else:
-                if not check_path_validity(path):
-                    answer = False
-                    continue
-
             # проверка существования пути path на Я.Диске
             if self.check_dir_name(path):
                 ans = input(
@@ -183,11 +143,7 @@ class YaUploader:
             else:
                 # разбор пути, удаление лишних слэшей
                 pathes = path.lstrip('/').split('/')
-                s_len = len(pathes)
-                for i in range(len(pathes)):
-                    if pathes[i] != '':
-                        pathes.append(pathes[i])
-                pathes = pathes[s_len:]
+                pathes = [i for i in pathes if i != '']
                 path = ''
                 for el in pathes:
                     path += '/' + el
@@ -199,3 +155,21 @@ class YaUploader:
         else:
             path = '/' + path + '/'  # слеши для формирования полного пути
         return path
+
+
+    def upload_file_list(self, photos_list, upload_path):
+        # Кол-во фото + log.json
+        print(f'Количество файлов для выгрузки: {len(photos_list) + 1}')
+        json_list = []
+        for file_name, prop in photos_list.items():
+            path_to_file = upload_path + file_name
+            print(f"> Загружаем файл по ссылке: {prop['url'][:50] + '...'}")
+
+            self.upload('remote', path_to_file, url=prop['url'])
+            print(f'>> Файл успешно сохранён: Я.Диск:{path_to_file}')
+            json_list.append({'file_name': file_name, 'size': prop['size_type']})
+
+        with open('log.json', 'w') as file:
+            json.dump(json_list, file)
+        self.upload('local', 'log.json', target_path=upload_path + 'log.json')
+        return None
