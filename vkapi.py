@@ -51,11 +51,12 @@ class VkApi:
             size_type = photo['sizes'][-1]['type']
             file_ext = re.findall(r'(?:jpg|jpeg|png|tiff|bmp|gif)',
                                   photo_url)[0]
-            try:
+
+            if 'count' in photo['likes'] and photo['likes']['count'] > 0:
                 likes = str(photo['likes']['count'])
-            except KeyError:
-                print('У фотографии нет лайков, файл будет назван по его дате')
+            else:
                 likes = ''
+
             file_name = likes + '.' + file_ext
             if likes == '' or file_name in result:
                 timestamp = dt.datetime.fromtimestamp(photo_date)
@@ -71,30 +72,3 @@ class VkApi:
         self.default_dirname = f"VK_{owner_id}"\
                                f"_{self.params['album_id']}"
         return result
-
-    @staticmethod
-    def vk_check_params(key, value):
-        """Проверка параметров запроса к VK API"""
-        if key == 'user_id':
-            try:
-                value = int(value)
-                if value < 0:
-                    print('>>> Ошибка! user_id не может быть меньше 0.')
-                    return False
-            except ValueError:
-                print('>>> Ошибка! user_id может быть только положительным числом либо 0.')
-                return False
-
-        if key == 'album_id' and value not in ['profile', 'wall', 'saved']:
-            print('>>> Ошибка! album_type неверен, выберите один из вариантов: "profile", "wall", "saved".')
-            return False
-
-        if key == 'count':
-            try:
-                value = int(value)
-                if value < 1 or value > 1000:
-                    print('Ошибка! photo_count может быть числом от 1 до 1000.')
-                    return False
-            except ValueError:
-                return {'>>> Ошибка! photo_count может быть только числом (1..1000).'}
-        return True

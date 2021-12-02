@@ -6,6 +6,7 @@ def welcome():
     print('Photo reaper v0.1.0')
     print('Вас приветствует сборщик фотографий из соц.сетей!')
     print('Во всех диалогах Enter выбирает первый ответ в списке возможных.')
+    print()
     return None
 
 
@@ -59,8 +60,8 @@ def get_params(net, params):
     out_params = {u_id['field']: u_id['default'],
                   p_count['field']: p_count['default'],
                   album_id['field']: album_id['default']}
-    change_mode = input("Хотите изменить параметры? [y/n]: ")
-    if change_mode in ['y', 'Y']:
+    change_mode = input("> Хотите изменить параметры? [1: Да, 0: Нет]: ")
+    if change_mode == '1':
         return change_params(net, out_params)
     else:
         return out_params
@@ -68,38 +69,31 @@ def get_params(net, params):
 
 
 def check_params(net, params):
+    """Проверка параметров запроса к VK API"""
     if net == 'vk':
         for key, value in params.items():
             if key == 'user_id':
-                try:
-                    value = int(value)
-                    if value < 0:
+                if value.isdigit():
+                    if int(value) < 0:
                         print('>>> Ошибка! user_id не может быть меньше 0.')
                         return False
-                except ValueError:
-                    print('>>> Ошибка! user_id может быть только положительным'
-                          'числом либо 0.')
+                else:
+                    print('>>> Ошибка! user_id может быть только числом.')
                     return False
 
             if key == 'album_id' and value not in ['profile', 'wall', 'saved']:
-                print('>>> Ошибка! album_type неверен, выберите один из '
-                      'вариантов: "profile", "wall", "saved".')
+                print('>>> Ошибка! album_type неверен, выберите один из вариантов: "profile", "wall", "saved".')
                 return False
 
-            if key == 'count':
-                try:
-                    value = int(value)
-                    if value < 1 or value > 1000:
-                        print('Ошибка! '
-                              'photo_count может быть числом от 1 до 1000.')
-                        return False
-                except ValueError:
-                    print('>>> Ошибка! '
-                          'photo_count может быть только числом (1..1000).')
+            if key == 'count' and value.isdigit():
+                if int(value) not in range(1, 1001):
+                    print('>>> Ошибка! photo_count может быть числом от 1 до 1000.')
                     return False
-        return True
+            else:
+                return {'>>> Ошибка! photo_count может быть только числом (1..1000).'}
+            return True
     else:
-        print('Другие соц.сети пока не поддерживаются.')
+        print('>>> Другие соц.сети пока не поддерживаются.')
         return False
 
 

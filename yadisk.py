@@ -22,30 +22,28 @@ class YaUploader:
         upload_params = {'path': file_path, 'overwrite': 'false'}
         run = True
         while run:
-            print('> Получение ссылки для загрузки локального файла...')
-            try:
-                response = requests.get(
-                    url,
-                    headers=self.headers,
-                    params=upload_params
-                )
-            except ValueError:
-                print(response.json()['error']['error_msg'])
-            print('>> Ссылка успешно получена.')
+            print('>> Получение ссылки для загрузки локального файла...')
+            response = requests.get(
+                url,
+                headers=self.headers,
+                params=upload_params
+            )
             res = response.json()
             if 'error' in res:
-                print('>>> Ошибка:', res['message'])
-                if res['description'].endswith('already exists.'):
-                    ans = input('> Перезаписать файл? [y/n] ')
-                    if ans in ['Y', 'y', '']:
+                if res['description'].endswith('exists.'):
+                    print('>> Файл', upload_params['path'], 'существует!')
+                    ans = input('> Перезаписать [1] или переименовать[2]? ')
+                    if ans == '1':
                         upload_params['overwrite'] = 'true'
                     else:
-                        return {'error': 'Отменено'}
+                        upload_params['path'] = input('>> Введите новое имя: ')
+                    continue
                 else:
-                    return {'error': 'Отменено'}
-            else:
-                run = False
+                    print('>>> Ошибка:', res['message'])
+                    exit()
+            run = False
         upload_url = res['href']
+        print('>> Ссылка успешно получена.')
         return upload_url
 
     def upload(self, mode='local', path=None, url=None, target_path=None):
@@ -73,7 +71,7 @@ class YaUploader:
                 upload_link,
                 files={"file": f}
             )
-            print(f'>>> Файл {path} успешно загружен: Я.Диск:{target_path}')
+            print(f'>> Файл {path} успешно загружен: Я.Диск:{target_path}')
             return response.status_code
         return 0
 
@@ -135,10 +133,10 @@ class YaUploader:
                 path = default_dir_name
             # проверка существования пути path на Я.Диске
             if self.check_dir_name(path):
-                ans = input(
-                    '>> Папка уже существует. Записать в неё? При совпадении '
-                    'имён файлы будут переименованы.[y/n] ')
-                if ans in ['y', 'Y', '']:
+                print('>> Папка', path, 'уже существует. Записать в неё?/n'
+                      'При совпадении имён файлы будут переименованы. ')
+                ans = input('> [1: Да, 0: Нет] ')
+                if ans == '1':
                     break
             else:
                 # разбор пути, удаление лишних слэшей
@@ -156,17 +154,17 @@ class YaUploader:
             path = '/' + path + '/'  # слеши для формирования полного пути
         return path
 
-
     def upload_file_list(self, photos_list, upload_path):
         # Кол-во фото + log.json
         print(f'Количество файлов для выгрузки: {len(photos_list) + 1}')
         json_list = []
         for file_name, prop in photos_list.items():
             path_to_file = upload_path + file_name
-            print(f"> Загружаем файл по ссылке: {prop['url'][:50] + '...'}")
+            print(f">> Загружаем файл по ссылке: {prop['url'][:50] + '...'}")
 
             self.upload('remote', path_to_file, url=prop['url'])
             print(f'>> Файл успешно сохранён: Я.Диск:{path_to_file}')
+            print()
             json_list.append({'file_name': file_name, 'size': prop['size_type']})
 
         with open('log.json', 'w') as file:
